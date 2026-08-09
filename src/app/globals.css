@@ -1,26 +1,233 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0B0B0C;
+  --foreground: #F3F4F6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  --font-sans: var(--font-inter), sans-serif;
+  --font-heading: var(--font-sora), sans-serif;
+  --font-playfair: var(--font-playfair), serif;
+  --font-outfit: var(--font-outfit), sans-serif;
+
+  /* Premium Dark Theme Colors */
+  --color-brand-black: #0B0B0C;
+  --color-brand-dark: #121214;
+  --color-brand-card: rgba(18, 18, 20, 0.7);
+  --color-brand-border: rgba(255, 255, 255, 0.08);
+  --color-brand-border-active: rgba(168, 85, 247, 0.4);
+
+  /* Emotional Glow Colors */
+  --color-brand-purple: #A855F7;
+  --color-brand-pink: #EC4899;
+  --color-brand-blue: #3B82F6;
+  --color-brand-muted: #9CA3AF;
+  
+  /* Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.2), 0 0 10px rgba(168, 85, 247, 0.1); }
+  100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4), 0 0 25px rgba(168, 85, 247, 0.2); }
+}
+
+/* Base Body Setup */
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
 }
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(18, 18, 20, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(22, 22, 26, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(168, 85, 247, 0.25);
+  box-shadow: 0 12px 40px 0 rgba(168, 85, 247, 0.05);
+  transform: translateY(-2px);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(168, 85, 247, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.15);
+}
+
+/* Radial Glow Backdrops */
+.glow-purple {
+  background: radial-gradient(circle at center, rgba(168, 85, 247, 0.15) 0%, transparent 60%);
+}
+
+.glow-pink {
+  background: radial-gradient(circle at center, rgba(236, 72, 153, 0.1) 0%, transparent 60%);
+}
+
+.glow-blue {
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.12) 0%, transparent 60%);
+}
+
+.glow-orange {
+  background: radial-gradient(circle at center, rgba(254, 110, 64, 0.12) 0%, transparent 60%);
+}
+
+.glow-gold-bloom {
+  background: radial-gradient(circle at top, rgba(254, 160, 63, 0.28) 0%, transparent 60%);
+}
+
+/* Premium Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0B0C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222226;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A855F7;
+}
+
+/* Text glow utilities */
+.text-glow {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1), 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+.text-glow-purple {
+  text-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+}
+
+.text-glow-pink {
+  text-shadow: 0 0 12px rgba(236, 72, 153, 0.4);
+}
+
+/* Custom Select Option Styles for Dark Mode Compatibility */
+select option {
+  background-color: #121214;
+  color: #ffffff;
+}
+
+/* Light theme overrides */
+.theme-light {
+  --background: #faf8f6;
+  --foreground: #2d1b35;
+  color: #2d1b35 !important;
+}
+
+.theme-light .text-white {
+  color: #2d1b35 !important;
+}
+
+.theme-light .text-brand-muted {
+  color: #7c6b88 !important;
+}
+
+.theme-light .glass-panel {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  color: #2d1b35 !important;
+  box-shadow: 0 8px 32px 0 rgba(168, 85, 247, 0.04) !important;
+}
+
+.theme-light .glass-card {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  color: #2d1b35 !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.theme-light .glass-card:hover {
+  border-color: rgba(168, 85, 247, 0.2) !important;
+  box-shadow: 0 12px 40px 0 rgba(168, 85, 247, 0.06) !important;
+}
+
+.theme-light .bg-brand-dark\/40, 
+.theme-light .bg-brand-dark\/60,
+.theme-light .bg-brand-dark\/20,
+.theme-light .bg-brand-dark\/35,
+.theme-light .bg-brand-dark\/30,
+.theme-light .bg-brand-dark {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  color: #2d1b35 !important;
+}
+
+.theme-light .border-brand-border,
+.theme-light .border-brand-border\/60,
+.theme-light .border-brand-border\/40,
+.theme-light .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.theme-light input,
+.theme-light textarea {
+  color: #2d1b35 !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light input:focus,
+.theme-light textarea:focus {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+.theme-light .text-glow {
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.1) !important;
+}
+
+.theme-light .text-glow-purple {
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.15) !important;
+}
+
+.theme-light .text-brand-purple {
+  color: #8b2ec9 !important;
+}
+
+.theme-light .text-brand-pink {
+  color: #db2777 !important;
+}
+
