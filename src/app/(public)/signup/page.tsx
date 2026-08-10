@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, User, Mail, Lock, ArrowRight, Loader2, AlertCircle, Gift, CheckCircle2 } from 'lucide-react';
 import CustomButton from '@/components/ui/CustomButton';
 import { createClient } from '@/utils/supabase/client';
+import { getURL } from '@/utils/url';
 
 function SignupContent() {
   const router = useRouter();
@@ -138,7 +139,7 @@ function SignupContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${getURL()}/auth/callback`,
         },
       });
 

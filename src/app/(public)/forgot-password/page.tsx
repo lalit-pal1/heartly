@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Heart, Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import CustomButton from '@/components/ui/CustomButton';
 import { createClient } from '@/utils/supabase/client';
+import { getURL } from '@/utils/url';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function ForgotPasswordPage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${getURL()}/reset-password`,
     });
 
     if (error) {
