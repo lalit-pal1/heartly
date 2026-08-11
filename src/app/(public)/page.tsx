@@ -11,6 +11,8 @@ import {
   ChevronRight, RotateCcw
 } from 'lucide-react';
 import CustomButton from '@/components/ui/CustomButton';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 // Funny responses for runaway button
 const FUNNY_PHRASES = [
@@ -88,10 +90,23 @@ const TEMPLATE_PRESETS = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
   const [heroSlide, setHeroSlide] = useState(1);
   const [demoStep, setDemoStep] = useState(1);
   const [noCount, setNoCount] = useState(0);
   const [noButtonPosition, setNoButtonPosition] = useState({ x: 0, y: 0 });
+
+  // Safety redirect net for code query parameters (fallback OAuth)
+  useEffect(() => {
+    if (!loading && user && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('code')) {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, loading, router]);
 
   // Autoplay hero phone mockup preview loop
   useEffect(() => {
