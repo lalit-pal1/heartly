@@ -25,9 +25,12 @@ export async function GET(request: NextRequest) {
     // Initialize redirect response first so we can inject cookies directly onto it
     const response = NextResponse.redirect(redirectUrl);
     
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      url!,
+      anonKey!,
       {
         cookies: {
           getAll() {
