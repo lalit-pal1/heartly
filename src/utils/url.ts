@@ -1,6 +1,10 @@
 export function getURL() {
   if (typeof window !== 'undefined') {
-    return window.location.origin;
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return window.location.origin;
+    }
+    return 'https://heartly-five.vercel.app';
   }
   
   let url =
@@ -12,5 +16,10 @@ export function getURL() {
   url = url.includes('http') ? url : `https://${url}`;
   // Remove trailing slash
   url = url.endsWith('/') ? url.slice(0, -1) : url;
+  
+  // Enforce canonical production URL if not localhost/development
+  if (!url.includes('localhost') && !url.includes('127.0.0.1')) {
+    return 'https://heartly-five.vercel.app';
+  }
   return url;
 }
