@@ -147,8 +147,8 @@ export async function POST(request: Request) {
     }
 
     // Retrieve Razorpay keys from environment
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID)?.trim();
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
     // Sandbox fallback if credentials are not set or set to dummy values
     if (!keyId || !keySecret || keyId === 'rzp_test_mock' || keyId.startsWith('mock')) {

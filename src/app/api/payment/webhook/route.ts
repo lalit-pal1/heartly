@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const bodyText = await request.text();
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
 
     if (!webhookSecret) {
       return NextResponse.json({ error: 'Razorpay webhook secret not configured' }, { status: 500 });

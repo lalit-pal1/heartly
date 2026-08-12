@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     if (!isSandbox) {
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
       if (!keySecret) {
         return NextResponse.json({ error: 'Razorpay secret key configuration missing' }, { status: 500 });
       }
