@@ -16,6 +16,7 @@ import {
 import CustomButton from '@/components/ui/CustomButton';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { checkAnalyticsSupport, setAnalyticsSupport } from '@/utils/analyticsFallback';
 
 // Authorized admin list
 const ADMIN_EMAILS = [
@@ -89,25 +90,41 @@ export default function AdminDashboardPage() {
 
       // Safely fetch surprise_analytics with fallback to surprise_views
       let analytics: any[] = [];
-      const aRes = await supabase.from('surprise_analytics').select('id, surprise_id, opened_at, completed_at, device_type');
-      if (aRes.error) {
-        if (aRes.error.code === 'PGRST205' || aRes.error.code === 'PGRST200' || aRes.error.message.includes('surprise_analytics')) {
-          console.warn('surprise_analytics table missing in admin portal, falling back to surprise_views...');
-          const fallbackRes = await supabase.from('surprise_views').select('id, surprise_id, viewed_at, device_type');
-          if (!fallbackRes.error && fallbackRes.data) {
-            analytics = fallbackRes.data.map((v: any) => ({
-              id: v.id,
-              surprise_id: v.surprise_id,
-              opened_at: v.viewed_at,
-              completed_at: null,
-              device_type: v.device_type
-            }));
+      const useAnalytics = checkAnalyticsSupport();
+
+      if (useAnalytics) {
+        const aRes = await supabase.from('surprise_analytics').select('id, surprise_id, opened_at, completed_at, device_type');
+        if (aRes.error) {
+          if (aRes.error.code === 'PGRST205' || aRes.error.code === 'PGRST200' || aRes.error.message.includes('surprise_analytics')) {
+            setAnalyticsSupport(false);
+            console.warn('surprise_analytics table missing in admin portal, falling back to surprise_views...');
+            const fallbackRes = await supabase.from('surprise_views').select('id, surprise_id, viewed_at, device_type');
+            if (!fallbackRes.error && fallbackRes.data) {
+              analytics = fallbackRes.data.map((v: any) => ({
+                id: v.id,
+                surprise_id: v.surprise_id,
+                opened_at: v.viewed_at,
+                completed_at: null,
+                device_type: v.device_type
+              }));
+            }
+          } else {
+            throw aRes.error;
           }
         } else {
-          throw aRes.error;
+          analytics = aRes.data || [];
         }
       } else {
-        analytics = aRes.data || [];
+        const fallbackRes = await supabase.from('surprise_views').select('id, surprise_id, viewed_at, device_type');
+        if (!fallbackRes.error && fallbackRes.data) {
+          analytics = fallbackRes.data.map((v: any) => ({
+            id: v.id,
+            surprise_id: v.surprise_id,
+            opened_at: v.viewed_at,
+            completed_at: null,
+            device_type: v.device_type
+          }));
+        }
       }
 
       // Map surprise_analytics to views structure for compatibility
@@ -1701,7 +1718,11 @@ export default function AdminDashboardPage() {
                             const supabase = createClient();
                             try {
                               // Delete analytics
-                              await supabase.from('surprise_analytics').delete().filter('surprise_id', 'in', '("s-seed-1","s-seed-2","s-seed-3")');
+                              if (checkAnalyticsSupport()) {
+                                await supabase.from('surprise_analytics').delete().filter('surprise_id', 'in', '("s-seed-1","s-seed-2","s-seed-3")');
+                              } else {
+                                await supabase.from('surprise_views').delete().filter('surprise_id', 'in', '("s-seed-1","s-seed-2","s-seed-3")');
+                              }
                               // Delete orders
                               await supabase.from('orders').delete().filter('surprise_id', 'in', '("s-seed-1","s-seed-2","s-seed-3")');
                               // Delete surprises

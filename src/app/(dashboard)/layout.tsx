@@ -12,17 +12,30 @@ import {
 import CustomButton from '@/components/ui/CustomButton';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { checkAnalyticsSupport, setAnalyticsSupport } from '@/utils/analyticsFallback';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const handleLogout = async () => {
-    await signOut();
-    router.push('/');
+    try {
+      await signOut();
+      await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+    router.push('/login');
   };
 
   const sidebarItems = [
@@ -82,35 +95,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         // 3. Fetch surprise opens & completions
         let analytics: any[] = [];
-        try {
-          const { data, error: aError } = await supabase
-            .from('surprise_analytics')
-            .select('id, opened_at, completed_at, surprise_id, surprises(user_id, recipient_name)');
+        if (!checkAnalyticsSupport()) {
+          const { data: viewsData, error: vError } = await supabase
+            .from('surprise_views')
+            .select('id, surprise_id, viewed_at, surprises(user_id, recipient_name)');
+          if (!vError && viewsData) {
+            analytics = viewsData.map((v: any) => ({
+              id: v.id,
+              surprise_id: v.surprise_id,
+              opened_at: v.viewed_at,
+              completed_at: null,
+              surprises: v.surprises
+            }));
+          }
+        } else {
+          try {
+            const { data, error: aError } = await supabase
+              .from('surprise_analytics')
+              .select('id, opened_at, completed_at, surprise_id, surprises(user_id, recipient_name)');
 
-          if (aError) {
-            // Check if table or relation doesn't exist
-            if (aError.code === 'PGRST205' || aError.code === 'PGRST200' || aError.message.includes('surprise_analytics')) {
-              console.warn('surprise_analytics table or relationship not found. Falling back to surprise_views notifications...');
-              const { data: viewsData, error: vError } = await supabase
-                .from('surprise_views')
-                .select('id, surprise_id, viewed_at, surprises(user_id, recipient_name)');
-              if (!vError && viewsData) {
-                analytics = viewsData.map((v: any) => ({
-                  id: v.id,
-                  surprise_id: v.surprise_id,
-                  opened_at: v.viewed_at,
-                  completed_at: null,
-                  surprises: v.surprises
-                }));
+            if (aError) {
+              if (aError.code === 'PGRST205' || aError.code === 'PGRST200' || aError.message.includes('surprise_analytics')) {
+                setAnalyticsSupport(false);
+                console.warn('surprise_analytics table or relationship not found. Falling back to surprise_views notifications...');
+                const { data: viewsData, error: vError } = await supabase
+                  .from('surprise_views')
+                  .select('id, surprise_id, viewed_at, surprises(user_id, recipient_name)');
+                if (!vError && viewsData) {
+                  analytics = viewsData.map((v: any) => ({
+                    id: v.id,
+                    surprise_id: v.surprise_id,
+                    opened_at: v.viewed_at,
+                    completed_at: null,
+                    surprises: v.surprises
+                  }));
+                }
+              } else {
+                throw aError;
               }
             } else {
-              throw aError;
+              analytics = data || [];
             }
-          } else {
-            analytics = data || [];
+          } catch (err) {
+            console.error('Error fetching analytics:', err);
           }
-        } catch (e) {
-          console.warn('Failed to fetch analytics, using empty fallback:', e);
         }
 
         const list: any[] = [];
@@ -215,6 +243,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user]);
 
   const hasUnreadNotifications = notifications.some(n => n.unread);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center space-y-4 text-center">
+        <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
+        <p className="text-xs text-brand-muted font-semibold">Loading Workspace...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-brand-black flex text-foreground text-left relative overflow-hidden font-sans">
@@ -325,7 +366,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
                       }}
-                      className="absolute right-0 mt-2 w-80 rounded-2xl border border-brand-purple/35 shadow-[0_0_25px_rgba(168,85,247,0.15)] p-4 space-y-3 z-50 text-left"
+                      className="fixed md:absolute left-4 right-4 md:left-auto md:right-0 top-[72px] md:top-auto w-auto md:w-80 rounded-2xl border border-brand-purple/35 shadow-[0_0_25px_rgba(168,85,247,0.15)] p-4 space-y-3 z-50 text-left"
                     >
                       <h4 className="font-heading font-bold text-xs text-white">Notifications</h4>
                       <hr className="border-brand-border/60" />
@@ -342,7 +383,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         ) : (
                           notifications.map(n => (
                             <div key={n.id} className="text-[11px] space-y-1 p-2 rounded-lg hover:bg-white/[0.03] transition-colors">
-                              <p className={`leading-relaxed ${n.unread ? 'text-white font-semibold' : 'text-brand-muted'}`}>
+                              <p className={`leading-relaxed break-words whitespace-normal ${n.unread ? 'text-white font-semibold' : 'text-brand-muted'}`}>
                                 {n.text}
                               </p>
                               <span className="text-[9px] text-brand-purple font-semibold font-mono block">{n.time}</span>

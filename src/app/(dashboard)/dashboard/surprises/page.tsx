@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CustomButton from '@/components/ui/CustomButton';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { checkAnalyticsSupport, setAnalyticsSupport } from '@/utils/analyticsFallback';
 
 // Helper to extract storage path from a public Supabase URL
 const getStoragePathFromUrl = (url: string) => {
@@ -42,52 +43,78 @@ export default function MySurprises() {
         let data: any = null;
         let error: any = null;
 
-        const res = await supabase
-          .from('surprises')
-          .select(`
-            id,
-            recipient_name,
-            relationship_type,
-            occasion,
-            status,
-            plan_type,
-            selected_theme,
-            surprise_slug,
-            created_at,
-            photos(image_url, sort_order),
-            opens:surprise_analytics(count)
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+        const useAnalytics = checkAnalyticsSupport();
 
-        if (res.error) {
-          if (res.error.code === 'PGRST200' || res.error.code === 'PGRST205' || res.error.message.includes('surprise_analytics')) {
-            console.warn('surprise_analytics relationship not found, falling back to surprise_views...');
-            const fallbackRes = await supabase
-              .from('surprises')
-              .select(`
-                id,
-                recipient_name,
-                relationship_type,
-                occasion,
-                status,
-                plan_type,
-                selected_theme,
-                surprise_slug,
-                created_at,
-                photos(image_url, sort_order),
-                opens:surprise_views(count)
-              `)
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false });
-            
-            data = fallbackRes.data;
-            error = fallbackRes.error;
+        if (useAnalytics) {
+          const res = await supabase
+            .from('surprises')
+            .select(`
+              id,
+              recipient_name,
+              relationship_type,
+              occasion,
+              status,
+              plan_type,
+              selected_theme,
+              surprise_slug,
+              created_at,
+              photos(image_url, sort_order),
+              opens:surprise_analytics(count)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (res.error) {
+            if (res.error.code === 'PGRST200' || res.error.code === 'PGRST205' || res.error.message.includes('surprise_analytics')) {
+              setAnalyticsSupport(false);
+              console.warn('surprise_analytics relationship not found, falling back to surprise_views...');
+              const fallbackRes = await supabase
+                .from('surprises')
+                .select(`
+                  id,
+                  recipient_name,
+                  relationship_type,
+                  occasion,
+                  status,
+                  plan_type,
+                  selected_theme,
+                  surprise_slug,
+                  created_at,
+                  photos(image_url, sort_order),
+                  opens:surprise_views(count)
+                `)
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+              
+              data = fallbackRes.data;
+              error = fallbackRes.error;
+            } else {
+              error = res.error;
+            }
           } else {
-            error = res.error;
+            data = res.data;
           }
         } else {
-          data = res.data;
+          const fallbackRes = await supabase
+            .from('surprises')
+            .select(`
+              id,
+              recipient_name,
+              relationship_type,
+              occasion,
+              status,
+              plan_type,
+              selected_theme,
+              surprise_slug,
+              created_at,
+              photos(image_url, sort_order),
+              opens:surprise_views(count)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          
+          data = fallbackRes.data;
+          error = fallbackRes.error;
         }
 
         if (error) throw error;

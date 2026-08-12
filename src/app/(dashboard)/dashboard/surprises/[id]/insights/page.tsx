@@ -11,6 +11,7 @@ import {
 import CustomButton from '@/components/ui/CustomButton';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { checkAnalyticsSupport, setAnalyticsSupport } from '@/utils/analyticsFallback';
 
 interface AnalyticsEntry {
   id: string;
@@ -81,37 +82,60 @@ export default function SurpriseInsights() {
 
       // 2. Fetch analytics
       let dbAnalytics: any[] = [];
-      const res = await supabase
-        .from('surprise_analytics')
-        .select('id, opened_at, completed_at, device_type, session_id')
-        .eq('surprise_id', id)
-        .order('opened_at', { ascending: false });
+      const useAnalytics = checkAnalyticsSupport();
 
-      if (res.error) {
-        if (res.error.code === 'PGRST205' || res.error.code === 'PGRST200' || res.error.message.includes('surprise_analytics')) {
-          console.warn('surprise_analytics table not found, falling back to surprise_views...');
-          const fallbackRes = await supabase
-            .from('surprise_views')
-            .select('id, surprise_id, viewed_at, device_type')
-            .eq('surprise_id', id)
-            .order('viewed_at', { ascending: false });
-          
-          if (fallbackRes.error) {
-            throw fallbackRes.error;
+      if (useAnalytics) {
+        const res = await supabase
+          .from('surprise_analytics')
+          .select('id, opened_at, completed_at, device_type, session_id')
+          .eq('surprise_id', id)
+          .order('opened_at', { ascending: false });
+
+        if (res.error) {
+          if (res.error.code === 'PGRST205' || res.error.code === 'PGRST200' || res.error.message.includes('surprise_analytics')) {
+            setAnalyticsSupport(false);
+            console.warn('surprise_analytics table not found, falling back to surprise_views...');
+            const fallbackRes = await supabase
+              .from('surprise_views')
+              .select('id, surprise_id, viewed_at, device_type')
+              .eq('surprise_id', id)
+              .order('viewed_at', { ascending: false });
+            
+            if (fallbackRes.error) {
+              throw fallbackRes.error;
+            }
+            
+            dbAnalytics = (fallbackRes.data || []).map((v: any) => ({
+              id: v.id,
+              opened_at: v.viewed_at,
+              completed_at: null,
+              device_type: v.device_type || 'Desktop',
+              session_id: v.id
+            }));
+          } else {
+            throw res.error;
           }
-          
-          dbAnalytics = (fallbackRes.data || []).map((v: any) => ({
-            id: v.id,
-            opened_at: v.viewed_at,
-            completed_at: null,
-            device_type: v.device_type || 'Desktop',
-            session_id: v.id
-          }));
         } else {
-          throw res.error;
+          dbAnalytics = res.data || [];
         }
       } else {
-        dbAnalytics = res.data || [];
+        const fallbackRes = await supabase
+          .from('surprise_views')
+          .select('id, surprise_id, viewed_at, device_type')
+          .eq('surprise_id', id)
+          .order('viewed_at', { ascending: false });
+        
+        if (fallbackRes.error) {
+          throw fallbackRes.error;
+        }
+        
+        dbAnalytics = (fallbackRes.data || []).map((v: any) => ({
+          id: v.id,
+          opened_at: v.viewed_at,
+          completed_at: null,
+          device_type: v.device_type || 'Desktop',
+          session_id: v.id
+        }));
       }
 
       setAnalytics(dbAnalytics);
@@ -129,6 +153,7 @@ export default function SurpriseInsights() {
     fetchAnalytics();
 
     const supabaseClient = createClient();
+    const tableName = checkAnalyticsSupport() ? 'surprise_analytics' : 'surprise_views';
     const channel = supabaseClient
       .channel(`insights-realtime-analytics-${id}`)
       .on(
@@ -136,7 +161,7 @@ export default function SurpriseInsights() {
         {
           event: '*',
           schema: 'public',
-          table: 'surprise_analytics',
+          table: tableName,
           filter: `surprise_id=eq.${id}`
         },
         () => {

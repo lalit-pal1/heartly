@@ -7,6 +7,7 @@ import CustomButton from '@/components/ui/CustomButton';
 import { createClient } from '@/utils/supabase/client';
 import { getOccasionTheme } from '@/utils/occasionThemes';
 import OccasionCinematicFlow from '@/components/occasion/OccasionCinematicFlow';
+import { checkAnalyticsSupport, setAnalyticsSupport } from '@/utils/analyticsFallback';
 
 interface Memory {
   id: string;
@@ -64,31 +65,47 @@ const trackOpenAnalytics = async (surpriseId: string) => {
       sessionStorage.setItem(sessionKey, sessionId);
 
       const device = getDeviceType();
-      const { error } = await supabase.from('surprise_analytics').insert({
-        surprise_id: surpriseId,
-        session_id: sessionId,
-        device_type: device,
-        opened_at: new Date().toISOString()
-      });
+      const useAnalytics = checkAnalyticsSupport();
 
-      if (error) {
-        if (error.code === 'PGRST205' || error.message.includes('surprise_analytics')) {
-          console.warn('surprise_analytics table missing, falling back to surprise_views insertion...');
-          const { error: fallbackErr } = await supabase.from('surprise_views').insert({
-            surprise_id: surpriseId,
-            viewed_at: new Date().toISOString(),
-            device_type: device
-          });
-          if (fallbackErr) {
-            console.warn('Failed to insert fallback view event:', fallbackErr.message);
+      if (useAnalytics) {
+        const { error } = await supabase.from('surprise_analytics').insert({
+          surprise_id: surpriseId,
+          session_id: sessionId,
+          device_type: device,
+          opened_at: new Date().toISOString()
+        });
+
+        if (error) {
+          if (error.code === 'PGRST205' || error.message.includes('surprise_analytics')) {
+            setAnalyticsSupport(false);
+            console.warn('surprise_analytics table missing, falling back to surprise_views insertion...');
+            const { error: fallbackErr } = await supabase.from('surprise_views').insert({
+              surprise_id: surpriseId,
+              viewed_at: new Date().toISOString(),
+              device_type: device
+            });
+            if (fallbackErr) {
+              console.warn('Failed to insert fallback view event:', fallbackErr.message);
+            } else {
+              console.log('Logged fallback view event. Device:', device);
+            }
           } else {
-            console.log('Logged fallback view event. Device:', device);
+            console.warn('Failed to insert open event:', error.message);
           }
         } else {
-          console.warn('Failed to insert open event:', error.message);
+          console.log('Logged open event. Session:', sessionId, 'Device:', device);
         }
       } else {
-        console.log('Logged open event. Session:', sessionId, 'Device:', device);
+        const { error: fallbackErr } = await supabase.from('surprise_views').insert({
+          surprise_id: surpriseId,
+          viewed_at: new Date().toISOString(),
+          device_type: device
+        });
+        if (fallbackErr) {
+          console.warn('Failed to insert fallback view event:', fallbackErr.message);
+        } else {
+          console.log('Logged fallback view event. Device:', device);
+        }
       }
     }
   } catch (err) {
@@ -99,6 +116,10 @@ const trackOpenAnalytics = async (surpriseId: string) => {
 // Completion tracking with session-level deduplication
 const trackCompleteAnalytics = async (surpriseId: string) => {
   if (typeof window === 'undefined') return;
+  
+  const useAnalytics = checkAnalyticsSupport();
+  if (!useAnalytics) return; // Skip if analytics table does not exist
+
   const supabase = createClient();
 
   try {
@@ -115,7 +136,11 @@ const trackCompleteAnalytics = async (surpriseId: string) => {
         .eq('session_id', sessionId);
 
       if (error) {
-        console.warn('Failed to update completion event:', error.message);
+        if (error.code === 'PGRST205' || error.message.includes('surprise_analytics')) {
+          setAnalyticsSupport(false);
+        } else {
+          console.warn('Failed to update completion event:', error.message);
+        }
       } else {
         sessionStorage.setItem(completeKey, 'true');
         console.log('Logged completion event. Session:', sessionId);
